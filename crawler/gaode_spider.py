@@ -243,7 +243,7 @@ def main():
         if last_err is not None:
             item["photos"] = []
 
-        # 每筆詳情查完再稍微休息一下
+        # 控速，避免太快被高德限流
         time.sleep(SLEEP_SEC_DETAIL)
 
     # --------- 3) 匯出 JSON ---------
