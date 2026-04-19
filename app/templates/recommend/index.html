@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}个性化推荐{% endblock %}
+
+{% block content %}
+<section class="container" style="max-width: 1100px; margin: 30px auto; padding: 0 16px;">
+
+  <!-- 顶部说明区（頂部說明區） -->
+  <div class="result-card" style="padding: 16px 18px; margin-bottom: 18px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 10px;">
+      <h2 style="margin: 0;">个性化推荐</h2>
+      <button id="btnRefreshRecommend" type="button" class="btn-nav">换一批</button>
+    </div>
+
+    <!-- 推荐说明文案（推薦說明文案） -->
+    <p id="recommend-desc" style="color: #ecfff2; margin: 0;">
+      根据你的收藏和浏览记录，为你推荐更可能喜欢的营地
+    </p>
+
+    <!-- 兴趣标签区域（興趣標籤區域） -->
+    <div id="recommend-tags" style="margin-top: 10px; color: #ecfff2; font-size: 15px;"></div>
+  </div>
+
+  <!-- 推荐列表（推薦列表） -->
+  <div id="recommend-list" style="
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  ">
+    <p>正在加载推荐结果...</p>
+  </div>
+
+  <!-- 底部跳转按钮（底部跳轉按鈕） -->
+  <div class="bottom-actions">
+    <a href="{{ url_for('main.index') }}" class="btn-secondary">← 返回首页</a>
+    <a href="{{ url_for('map.map_view') }}" class="btn-primary">🌲 发现更多营地</a>
+  </div>
+
+</section>
+
+<script>
+  // 保存后端返回的兴趣标签和当前选中标签（保存後端回傳的興趣標籤和當前選中標籤）
+  let interestTags = [];
+  let currentInterestTag = "";
+
+  // 接口失败时显示错误提示（介面失敗時顯示錯誤提示）
+  function showRecommendError() {
+    const container = document.getElementById("recommend-list");
+    if (container) {
+      container.innerHTML = "<p style='color:red;'>推荐加载失败</p>";
+    }
+  }
+
+  // 根据当前标签更新顶部说明文案（根據當前標籤更新頂部說明文案）
+  function updateDesc(tag) {
+    const el = document.getElementById("recommend-desc");
+    if (!el) return;
+
+    if (tag) {
+      el.textContent = `根据你的收藏和浏览，为你推荐更多“${tag}”相关营地～`;
+    } else {
+      el.textContent = "根据你的收藏和浏览，为你推荐更多可能喜欢的营地～";
+    }
+  }
+
+  // 渲染兴趣标签并绑定点击事件（渲染興趣標籤並綁定點擊事件）
+  function renderInterestTags() {
+    const el = document.getElementById("recommend-tags");
+    if (!el) return;
+
+    if (!interestTags.length) {
+      el.innerHTML = "";
+      return;
+    }
+
+    let html = `猜你喜欢：`;
+
+    interestTags.forEach(tag => {
+      const active = tag === currentInterestTag;
+
+      html += `
+        <span
+          class="interest-tag"
+          data-tag="${tag}"
+          style="
+            display:inline-block;
+            margin-left:8px;
+            margin-top:4px;
+            padding:4px 10px;
+            border-radius:999px;
+            cursor:pointer;
+            font-size:14px;
+            color:#ecfff2;
+            background:${active ? 'rgba(74, 222, 128, 0.28)' : 'rgba(255,255,255,0.14)'};
+            border:${active ? '1px solid rgba(74,222,128,0.8)' : '1px solid rgba(255,255,255,0.2)'};
+            transition:all .2s ease;
+          "
+        >
+          ${tag}
+        </span>
+      `;
+    });
+
+    el.innerHTML = html;
+
+    el.querySelectorAll(".interest-tag").forEach(node => {
+      node.addEventListener("click", () => {
+        const tag = node.dataset.tag;
+        loadRecommend(tag).catch(showRecommendError);
+      });
+    });
+  }
+
+  // 渲染推荐卡片列表（渲染推薦卡片列表）
+  function renderList(items) {
+    const container = document.getElementById("recommend-list");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!items || !items.length) {
+      container.innerHTML = "<p>暂无推荐结果</p>";
+      return;
+    }
+
+    items.forEach(item => {
+      const camp = item.camp;
+      const img = camp.photo_1 || "/static/images/home-bg.png";
+
+      const scoreHtml = Number(item.score) > 0
+        ? `<p class="score">推荐指数：${item.score} / 5</p>`
+        : `<p class="score">为你精选</p>`;
+
+      const card = `
+        <div class="recommend-card">
+          <img src="${img}" alt="${camp.name}" class="recommend-img">
+
+          <div class="recommend-body">
+            <h3 style="color:#111827; margin:0 0 8px; font-size:18px; font-weight:bold;">
+              ${camp.name}
+            </h3>
+
+            <p class="meta">
+              ${camp.city || ""}${camp.district ? " · " + camp.district : ""}
+            </p>
+
+            <p class="address">
+              ${camp.address || ""}
+            </p>
+
+            ${scoreHtml}
+
+            <a href="/map/camp/${camp.id}" class="detail-btn">
+              查看详情
+            </a>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML += card;
+    });
+  }
+
+  // 请求推荐接口并刷新页面内容（請求推薦介面並刷新頁面內容）
+  async function loadRecommend(tag = null) {
+    const params = new URLSearchParams();
+
+    if (tag) {
+      params.set("tag", tag);
+    }
+
+    params.set("seed", Date.now().toString());
+
+    const res = await fetch(`/recommend/api/personalized?${params.toString()}`);
+    const payload = await res.json();
+
+    interestTags = payload.interest_tags || [];
+    currentInterestTag = payload.selected_tag || "";
+
+    updateDesc(currentInterestTag);
+    renderInterestTags();
+    renderList(payload.results || []);
+  }
+
+  // “换一批”按钮：刷新当前标签下的推荐（「換一批」按鈕：刷新當前標籤下的推薦）
+  const btn = document.getElementById("btnRefreshRecommend");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      let nextTag = currentInterestTag || "";
+
+      if (!nextTag && interestTags.length) {
+        nextTag = interestTags[0];
+      }
+
+      loadRecommend(nextTag || null).catch(showRecommendError);
+    });
+  }
+
+  // 页面首次加载时先请求一次推荐（頁面首次載入時先請求一次推薦）
+  loadRecommend(null).catch(showRecommendError);
+</script>
+{% endblock %}

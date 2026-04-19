@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}{{ camp.name }} - CampMap{% endblock %}
+
+{% block content %}
+<!-- 营地详情页整体容器（營地詳情頁整體容器） -->
+<div class="camp-detail-page">
+  <div class="camp-detail-layout">
+
+    <!-- 左侧图片区，用于展示主图和缩略图（左側圖片區，用於展示主圖和縮略圖） -->
+    <section class="camp-gallery">
+      <!-- 主图，默认显示第一张图片；若加载失败则切换为备用图片（主圖，預設顯示第一張圖片；若載入失敗則切換為備用圖片） -->
+      <img id="mainPhoto" class="main-photo" src="{{ photos[0] }}" alt="{{ camp.name }}"
+           data-fallback="/static/images/home-bg.png"
+           onerror="if(this.dataset.fallbackApplied)return;this.dataset.fallbackApplied='1';this.src=this.dataset.fallback;">
+
+      <!-- 若图片不足 3 张，则用第一张图片补位，避免模板取值报错（若圖片不足 3 張，則用第一張圖片補位，避免模板取值報錯） -->
+      {% set p2 = photos[1] if photos|length > 1 else photos[0] %}
+      {% set p3 = photos[2] if photos|length > 2 else photos[0] %}
+
+      <!-- 缩略图区域，点击后可切换主图（縮略圖區域，點擊後可切換主圖） -->
+      <div class="floating-thumbs">
+        <button class="thumb-btn" type="button" onclick="switchMainPhoto('{{ photos[0] }}')">
+          <img src="{{ photos[0] }}" alt="photo_1"
+               data-fallback="/static/images/home-bg.png"
+               onerror="if(this.dataset.fallbackApplied)return;this.dataset.fallbackApplied='1';this.src=this.dataset.fallback;">
+        </button>
+        <button class="thumb-btn" type="button" onclick="switchMainPhoto('{{ p2 }}')">
+          <img src="{{ p2 }}" alt="photo_2"
+               data-fallback="/static/images/home-bg.png"
+               onerror="if(this.dataset.fallbackApplied)return;this.dataset.fallbackApplied='1';this.src=this.dataset.fallback;">
+        </button>
+        <button class="thumb-btn" type="button" onclick="switchMainPhoto('{{ p3 }}')">
+          <img src="{{ p3 }}" alt="photo_3"
+               data-fallback="/static/images/home-bg.png"
+               onerror="if(this.dataset.fallbackApplied)return;this.dataset.fallbackApplied='1';this.src=this.dataset.fallback;">
+        </button>
+      </div>
+    </section>
+
+    <!-- 右侧文字详情区域，展示营地基本信息和操作按钮（右側文字詳情區域，展示營地基本資訊和操作按鈕） -->
+    <section class="camp-info-panel">
+      <h2>{{ camp.name }}</h2>
+      <p><b>省市区：</b>{{ camp.province or '' }} {{ camp.city or '' }} {{ camp.district or '' }}</p>
+      <p><b>地址：</b>{{ camp.address or '暂无' }}</p>
+      <p><b>电话：</b>{{ (camp.tel or '')|trim or '暂无' }}</p>
+
+      <!-- 操作区域：已登录用户可收藏/取消收藏，未登录用户跳转登录页（操作區域：已登入使用者可收藏／取消收藏，未登入使用者跳轉登入頁） -->
+      <div class="camp-actions">
+        {% if current_user.is_authenticated %}
+          <form class="camp-actions-form" method="post" action="{{ url_for('map.toggle_favorite', camp_id=camp.id) }}">
+            <!-- 根据当前收藏状态动态显示按钮文字（根據目前收藏狀態動態顯示按鈕文字） -->
+            <button type="submit" class="btn btn-primary">
+              {{ "取消收藏" if is_favorited else "收藏营地" }}
+            </button>
+          </form>
+        {% else %}
+          <a class="btn btn-primary" href="{{ url_for('auth.login') }}">登录后可收藏</a>
+        {% endif %}
+
+        <!-- 返回地图找营页面（返回地圖找營頁面） -->
+        <a class="btn btn-primary" href="{{ url_for('map.map_view') }}">返回地图找营</a>
+      </div>
+    </section>
+  </div>
+</div>
+
+<style>
+  /* 页面整体区域，设置最小高度和内边距（頁面整體區域，設定最小高度和內邊距） */
+  .camp-detail-page{
+    width: 100%;
+    min-height: calc(100vh - 80px);
+    padding: 24px;
+  }
+
+  /* 主体采用左右两栏布局（主體採用左右兩欄佈局） */
+  .camp-detail-layout{
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 22px;
+    align-items: start;
+  }
+
+  /* 图片区域设为相对定位，方便缩略图悬浮定位（圖片區域設為相對定位，方便縮略圖懸浮定位） */
+  .camp-gallery{
+    position: relative;
+    width: 100%;
+  }
+
+  /* 主图固定尺寸并裁切，避免图片比例不一致影响布局（主圖固定尺寸並裁切，避免圖片比例不一致影響佈局） */
+  .main-photo{
+    width: 100%;
+    max-width: 760px;
+    height: 460px;
+    object-fit: cover;
+    border-radius: 14px;
+    display: block;
+    box-shadow: 0 10px 26px rgba(0,0,0,.15);
+    background: #eee;
+  }
+
+  /* 缩略图悬浮在主图右上角（縮略圖懸浮在主圖右上角） */
+  .floating-thumbs{
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* 单个缩略图按钮样式（單個縮略圖按鈕樣式） */
+  .thumb-btn{
+    width: 108px;
+    height: 72px;
+    border: 2px solid rgba(255,255,255,.75);
+    border-radius: 10px;
+    overflow: hidden;
+    padding: 0;
+    background: rgba(255,255,255,.28);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0,0,0,.18);
+  }
+
+  .thumb-btn img{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 右侧信息面板延续毛玻璃风格（右側資訊面板延續毛玻璃風格） */
+  .camp-info-panel{
+    background: rgba(10, 28, 18, .38);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 18px 18px 16px;
+    color: #ecfff2;
+  }
+
+  .camp-info-panel h2{
+    margin: 0 0 10px;
+    color: #f3fff7;
+  }
+
+  .camp-info-panel p{
+    margin: 8px 0;
+    line-height: 1.5;
+    color: #dff7e7;
+  }
+
+  .camp-info-panel b{
+    color: #f3fff7;
+  }
+
+  /* 按钮区域使用弹性布局，并支持换行（按鈕區域使用彈性佈局，並支援換行） */
+  .camp-actions{
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .camp-actions-form{
+    margin: 0;
+  }
+
+  /* 统一按钮尺寸，保证页面视觉一致（統一按鈕尺寸，保證頁面視覺一致） */
+  .camp-actions .btn{
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 12px;
+    white-space: nowrap;
+    width: auto;
+    margin-top: 0;
+  }
+
+  .camp-actions button.btn{
+    width: auto;
+    margin-top: 0;
+  }
+
+  /* 小屏幕下改为上下布局，缩略图改成横向排列（小螢幕下改為上下佈局，縮略圖改成橫向排列） */
+  @media (max-width: 980px){
+    .camp-detail-layout{
+      grid-template-columns: 1fr;
+    }
+
+    .main-photo{
+      max-width: 100%;
+      height: 320px;
+    }
+
+    .floating-thumbs{
+      flex-direction: row;
+      top: auto;
+      right: 12px;
+      bottom: 12px;
+    }
+  }
+</style>
+
+<script>
+  // 切换主图函数：点击缩略图后替换大图地址（切換主圖函式：點擊縮略圖後替換大圖網址）
+  function switchMainPhoto(url){
+    const el = document.getElementById('mainPhoto');
+    if (!el) return;
+    delete el.dataset.fallbackApplied;
+    el.src = url || el.dataset.fallback || '/static/images/home-bg.png';
+  }
+
+  {% if current_user.is_authenticated %}
+  // 记录进入页面的时间，用于计算停留时长（記錄進入頁面的時間，用於計算停留時長）
+  const enterTime = Date.now();
+
+  // 用户离开页面前，将浏览停留时间发送到后端（使用者離開頁面前，將瀏覽停留時間傳送到後端）
+  function sendViewHistory() {
+    const dwellSeconds = Math.round((Date.now() - enterTime) / 1000);
+
+    navigator.sendBeacon(
+        "{{ url_for('map.record_view', camp_id=camp.id) }}",
+        new URLSearchParams({ "dwell_seconds": dwellSeconds })
+    );
+  }
+
+  // 在页面关闭或跳转前触发浏览记录上报（在頁面關閉或跳轉前觸發瀏覽紀錄上報）
+  window.addEventListener("beforeunload", sendViewHistory);
+  {% endif %}
+</script>
+{% endblock %}

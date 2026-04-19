@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}地图找营 - CampMap{% endblock %}
+
+{% block content %}
+<div class="map-page">
+  <!-- 左侧筛选栏（左側篩選欄） -->
+  <aside class="sidebar">
+    <h3>筛选条件</h3>
+
+    <label>关键词</label>
+    <input id="kw" class="input" placeholder="营地名/地址/城市">
+
+    <label>城市</label>
+    <input id="city" class="input" placeholder="如 深圳市">
+
+    <label>区县</label>
+    <input id="district" class="input" placeholder="如 龙岗区">
+
+    <label>价格上限</label>
+    <input id="maxPrice" class="input" type="number" min="0" placeholder="如 300">
+
+    <button id="btnFilter" class="btn">筛选</button>
+    <p id="countText" style="margin-top:10px;color:#d8ffe5;"></p>
+  </aside>
+
+  <!-- 右侧地图区域（右側地圖區域） -->
+  <section class="map-wrap">
+    <div id="map"></div>
+  </section>
+</div>
+
+<script>
+  window._AMapSecurityConfig = {
+    securityJsCode: "{{ AMAP_SECURITY_CODE }}"
+  };
+</script>
+<script src="https://webapi.amap.com/maps?v=2.0&key={{ AMAP_WEB_KEY }}"></script>
+
+<script>
+  let map;
+  let markers = [];
+
+  // 清空当前地图上的标记（清空當前地圖上的標記）
+  function clearMarkers() {
+    if (markers.length && map) map.remove(markers);
+    markers = [];
+  }
+
+  // 从后端接口获取营地数据（從後端介面取得營地資料）
+  async function loadCamps(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    const url = qs ? `/map/api/camps?${qs}` : '/map/api/camps';
+    const res = await fetch(url);
+    return await res.json();
+  }
+
+  // 渲染地图标记，并点击显示信息窗（渲染地圖標記，並點擊顯示資訊窗）
+  function renderMarkers(camps) {
+    clearMarkers();
+
+    markers = camps.map(c => {
+      const m = new AMap.Marker({
+        position: [c.lng, c.lat],
+        title: c.name
+      });
+
+      m.on('click', () => {
+        const tel = (c.tel || '').toString().trim();
+        const html = `
+          <div style="min-width:230px">
+            <b>${c.name}</b><br/>
+            ${c.city}${c.district ? ' · ' + c.district : ''}<br/>
+            ${c.address || ''}<br/>
+            电话：${tel || '暂无'}<br/>
+            <a href="/map/camp/${c.id}">查看详情</a>
+          </div>`;
+        const info = new AMap.InfoWindow({
+          content: html,
+          offset: new AMap.Pixel(0, -20)
+        });
+        info.open(map, m.getPosition());
+      });
+
+      return m;
+    });
+
+    if (markers.length) {
+      map.add(markers);
+      map.setFitView(markers, false, [60, 60, 60, 60]);
+    }
+
+    document.getElementById('countText').innerText = `共 ${camps.length} 个营地`;
+  }
+
+  // 初始化地图并绑定筛选事件（初始化地圖並綁定篩選事件）
+  async function initMapPage() {
+    if (typeof AMap === "undefined") {
+      console.error("AMap 未加载，请检查 key / securityJsCode");
+      return;
+    }
+
+    map = new AMap.Map('map', {
+      zoom: 8,
+      center: [113.26653, 23.132191],
+      resizeEnable: true,
+      mapStyle: 'amap://styles/normal'
+    });
+
+    const first = await loadCamps();
+    renderMarkers(first);
+
+    document.getElementById('btnFilter').addEventListener('click', async () => {
+      const kw = document.getElementById('kw').value.trim();
+      const city = document.getElementById('city').value.trim();
+      const district = document.getElementById('district').value.trim();
+      const max_price = document.getElementById('maxPrice').value.trim();
+
+      const data = await loadCamps({ kw, city, district, max_price });
+      renderMarkers(data);
+    });
+  }
+
+  window.addEventListener('load', initMapPage);
+</script>
+{% endblock %}

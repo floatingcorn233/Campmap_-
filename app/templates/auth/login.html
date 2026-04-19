@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}登录 - CampMap{% endblock %}
+
+{% block content %}
+<!-- 登录页面整体卡片容器（登入頁面整體卡片容器） -->
+<div class="auth-card">
+  <h2>登录</h2>
+
+  <!-- 登录表单，提交方式为 POST（登入表單，提交方式為 POST） -->
+  <form method="post">
+    <!-- Flask-WTF 自动生成隐藏字段，如 CSRF token（Flask-WTF 自動生成隱藏欄位，如 CSRF token） -->
+    {{ form.hidden_tag() }}
+
+    <!-- 邮箱输入框标签与输入组件（電子郵件輸入框標籤與輸入元件） -->
+    <label>{{ form.email.label }}</label>
+    {{ form.email(class="input") }}
+
+    <!-- 密码输入框标签与输入组件（密碼輸入框標籤與輸入元件） -->
+    <label>{{ form.password.label }}</label>
+    {{ form.password(class="input") }}
+
+    <!-- 提交按钮（提交按鈕） -->
+    {{ form.submit(class="btn") }}
+  </form>
+</div>
+{% endblock %}

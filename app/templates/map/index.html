@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}地图找营 - CampMap{% endblock %}
+
+{% block content %}
+<div class="map-page-full">
+  <section class="map-wrap map-wrap-full">
+    <div id="map"></div>
+
+    <!-- 顶部搜索栏（頂部搜尋欄） -->
+    <div class="map-toolbar">
+      <input id="kw" class="input toolbar-input" placeholder="搜索营地名 / 地址 / 城市">
+      <button id="btnFilter" class="btn toolbar-btn">搜索</button>
+      <span id="countText" class="toolbar-count"></span>
+    </div>
+
+    <!-- 右侧详情面板（右側詳情面板） -->
+    <aside id="campPanel" class="camp-panel hidden">
+      <button id="closePanel" class="panel-close" type="button">×</button>
+      <h3 id="p_name">营地名称</h3>
+      <p><strong>省市区：</strong><span id="p_region">-</span></p>
+      <p><strong>地址：</strong><span id="p_address">-</span></p>
+      <p><strong>电话：</strong><span id="p_tel">-</span></p>
+      <p><strong>坐标：</strong><span id="p_lnglat">-</span></p>
+      <a id="p_detail_link" href="#" class="btn btn-primary">查看详情页</a>
+    </aside>
+  </section>
+</div>
+
+<!-- 调试用：确认高德 key 是否传入（調試用：確認高德 key 是否傳入） -->
+<div style="display:none">amap_key={{ amap_key }}</div>
+
+<script>
+  window._AMapSecurityConfig = { securityJsCode: "{{ amap_security_js_code }}" };
+</script>
+<script src="https://webapi.amap.com/maps?v=2.0&key={{ amap_key }}"></script>
+
+<script>
+  let map;
+  let markers = [];
+  let selectedMarker = null;
+
+  const campPanel = document.getElementById('campPanel');
+  const countText = document.getElementById('countText');
+
+  // 清空当前地图标记（清空當前地圖標記）
+  function clearMarkers() {
+    if (markers.length && map) map.remove(markers);
+    markers = [];
+    selectedMarker = null;
+  }
+
+  // 显示右侧营地详情（顯示右側營地詳情）
+  function showPanel(c) {
+    document.getElementById('p_name').textContent = c.name || '-';
+    document.getElementById('p_region').textContent = `${c.province || ''} ${c.city || ''} ${c.district || ''}`.trim() || '-';
+    document.getElementById('p_address').textContent = c.address || '-';
+    const tel = (c.tel || '').toString().trim();
+    document.getElementById('p_tel').textContent = tel ? tel : '暂无';
+    document.getElementById('p_lnglat').textContent = `${c.lng}, ${c.lat}`;
+    document.getElementById('p_detail_link').href = `/map/camp/${c.id}`;
+
+    campPanel.classList.remove('hidden');
+  }
+
+  // 隐藏右侧详情面板（隱藏右側詳情面板）
+  function hidePanel() {
+    campPanel.classList.add('hidden');
+  }
+
+  // 从后端获取营地数据（從後端取得營地資料）
+  async function loadCamps(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    const url = qs ? `/map/api/camps?${qs}` : '/map/api/camps';
+    const res = await fetch(url);
+    return await res.json();
+  }
+
+  // 渲染地图标记并绑定点击事件（渲染地圖標記並綁定點擊事件）
+  function renderMarkers(camps) {
+    clearMarkers();
+    hidePanel();
+
+    markers = camps.map(c => {
+      const m = new AMap.Marker({
+        position: [c.lng, c.lat],
+        title: c.name
+      });
+
+      m.on('click', () => {
+        selectedMarker = m;
+        map.setCenter(m.getPosition(), true);
+        showPanel(c);
+      });
+
+      return m;
+    });
+
+    if (markers.length) {
+      map.add(markers);
+      map.setFitView(markers, false, [40, 40, 360, 40]); // 给右侧详情面板预留空间（給右側詳情面板預留空間）
+    }
+
+    countText.textContent = `共 ${camps.length} 个营地`;
+  }
+
+  // 执行搜索并刷新标记（執行搜尋並刷新標記）
+  async function doSearch() {
+    const kw = document.getElementById('kw').value.trim();
+    const data = await loadCamps({ kw });
+    renderMarkers(data);
+  }
+
+  // 初始化地图并绑定事件（初始化地圖並綁定事件）
+  async function initMapPage() {
+    if (typeof AMap === "undefined") {
+      console.error("AMap 未加载，请检查 key / securityJsCode");
+      return;
+    }
+
+    map = new AMap.Map('map', {
+      zoom: 8,
+      center: [113.26653, 23.132191],
+      resizeEnable: true,
+      mapStyle: 'amap://styles/normal'
+    });
+
+    const first = await loadCamps();
+    renderMarkers(first);
+
+    document.getElementById('btnFilter').addEventListener('click', doSearch);
+    document.getElementById('kw').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doSearch();
+    });
+
+    document.getElementById('closePanel').addEventListener('click', hidePanel);
+  }
+
+  window.addEventListener('load', initMapPage);
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %} <!-- 繼承 base.html 的整體框架（導覽列、CSS、頁面外殼） -->
+{% block title %}CampMap - 首页{% endblock %} <!-- 設定這個頁面的瀏覽器標題 -->
+
+{% block content %} <!-- 開始填入這個頁面的主要內容 -->
+
+<!-- 頂部封面區 -->
+<section class="hero">
+  <div class="hero-mask">
+    <h1>发现理想营地，享受自然生活</h1> <!-- 首頁主標題 -->
+  </div>
+</section>
+
+<!-- 首頁主功能區 -->
+<section class="feature-grid-home">
+
+  <!-- 左側：地圖卡片 -->
+  <article class="feature-card map-card home-left">
+    <div class="feature-top">
+      <div class="feature-icon">🗺️</div> <!-- 圖示 -->
+      <h3>地图找营</h3> <!-- 卡片標題 -->
+    </div>
+
+    <div id="home-map" class="home-map"></div> <!-- 首頁內嵌地圖容器 -->
+
+    <a href="{{ url_for('map.map_view') }}">
+      进入地图找营 →
+    </a> <!-- 點擊前往完整地圖頁 -->
+  </article>
+
+  <!-- 右側：個性化推薦卡片 -->
+  <a href="{{ url_for('recommend.index') }}" class="feature-card home-right card-link">
+    <div class="feature-top">
+      <div class="feature-icon">🤖</div> <!-- 圖示 -->
+      <h3>个性化推荐</h3> <!-- 卡片標題 -->
+    </div>
+
+    <div id="home-recommend-list"></div> <!-- 首頁推薦列表容器（JS 動態塞內容） -->
+
+    <span class="home-enter-recommend">
+      进入个性化推荐 →
+    </span> <!-- 卡片底部提示文字 -->
+  </a>
+
+</section>
+
+<!-- 底部說明區 -->
+<footer class="home-footer-bar">
+  <div class="home-footer-line">
+    免责声明：本网站仅提供露营地点参考，野外露营请务必注意安全，遵守当地规定。
+  </div>
+  <div class="home-footer-line">
+    联络我们：邮箱 1155239804@link.cuhk.edu.hk | 电话 +862 84956511
+  </div>
+</footer>
+
+<!-- 高德地圖安全配置 -->
+<script>
+  window._AMapSecurityConfig = {
+    securityJsCode: "{{ amap_security_js_code }}" // 從後端拿高德安全碼
+  };
+</script>
+
+<!-- 載入高德地圖 JS SDK -->
+<script src="https://webapi.amap.com/maps?v=2.0&key={{ amap_key }}"></script>
+
+<!-- 讓首頁小地圖可點擊跳轉到完整地圖頁 -->
+<script>
+  const homeMapWrap = document.getElementById("home-map");
+
+  if (homeMapWrap) {
+    homeMapWrap.style.cursor = "pointer"; // 滑鼠移上去顯示可點擊
+
+    homeMapWrap.addEventListener("click", function () {
+      window.location.href = "{{ url_for('map.map_view') }}"; // 點擊後跳轉到地圖頁
+    });
+  }
+</script>
+
+<!-- 初始化首頁小地圖 -->
+<script>
+  async function initHomeMap() {
+    if (typeof AMap === "undefined") return; // 如果高德地圖沒載入成功，就直接結束
+
+    const map = new AMap.Map('home-map', {
+      zoom: 7, // 初始縮放層級
+      center: [113.26653, 23.132191], // 初始中心點（廣州附近）
+      resizeEnable: true // 視窗大小變化時自動調整
+    });
+
+    const res = await fetch('/map/api/camps'); // 向後端拿所有營地資料
+    const all = await res.json();
+    const camps = all.slice(0, 200); // 只取前 200 筆，避免地圖太卡
+
+    const markers = camps.map(c => {
+      const marker = new AMap.Marker({
+        position: [c.lng, c.lat], // 標記位置
+        title: c.name // 滑鼠移上去顯示名稱
+      });
+
+      marker.on('click', () => {
+        const html = `
+          <div style="min-width:220px">
+            <b>${c.name}</b><br/>
+            ${c.city}${c.district ? ' · ' + c.district : ''}<br/>
+            ${c.address || ''}<br/>
+            <a href="/map/camp/${c.id}">查看详情</a>
+          </div>
+        `; // 點擊 marker 後顯示的小資訊窗內容
+
+        const info = new AMap.InfoWindow({
+          content: html,
+          offset: new AMap.Pixel(0, -20) // 資訊窗往上偏移一點
+        });
+
+        info.open(map, marker.getPosition()); // 打開資訊窗
+      });
+
+      return marker;
+    });
+
+    if (markers.length) {
+      map.add(markers); // 把所有標記加到地圖上
+      map.setFitView(markers, false, [40, 40, 40, 40]); // 自動調整視野，讓標記都能看見
+    }
+  }
+
+  window.addEventListener('load', initHomeMap); // 頁面載入完成後執行
+</script>
+
+<!-- 載入首頁推薦資料 -->
+<script>
+  async function loadHomeRecommend() {
+    try {
+      const res = await fetch('/recommend/api/personalized'); // 向後端拿推薦結果
+      const data = await res.json();
+      const items = data.results || [];
+
+      const container = document.getElementById("home-recommend-list");
+      if (!container) return; // 如果容器不存在就不繼續
+
+      container.innerHTML = ""; // 先清空舊內容
+
+      items.slice(0, 4).forEach(item => {
+        const camp = item.camp;
+        const img = camp.photo_1 || "/static/images/campmap-logo.png"; // 沒圖就用預設圖
+
+        const card = `
+          <div class="home-rec-row">
+            <img src="${img}" class="home-rec-thumb" alt="${camp.name}">
+            <div class="home-rec-info">
+              <div class="home-rec-name">${camp.name}</div>
+              <div class="home-rec-meta">${camp.city || ""}${camp.district ? " · " + camp.district : ""}</div>
+            </div>
+          </div>
+        `; // 每一筆首頁推薦的小卡片
+
+        container.innerHTML += card; // 把卡片加進容器
+      });
+
+    } catch (err) {
+      console.error("首页推荐加载失败", err); // 在瀏覽器控制台印出錯誤
+
+      const container = document.getElementById("home-recommend-list");
+      if (container) {
+        container.innerHTML = "<p style='color:red;'>推荐加载失败</p>"; // 頁面上顯示錯誤提示
+      }
+    }
+  }
+
+  window.addEventListener("load", loadHomeRecommend); // 頁面載入完成後執行
+</script>
+
+{% endblock %} <!-- 結束這個頁面的主要內容 -->

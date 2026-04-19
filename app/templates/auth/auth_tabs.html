@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}登录/注册 - CampMap{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+  <div class="auth-tabs">
+    <button id="tabLogin" class="tab-btn" type="button">登录</button>
+    <button id="tabRegister" class="tab-btn" type="button">注册</button>
+  </div>
+
+  <!-- 登录 -->
+  <form id="formLogin" method="post" action="{{ url_for('auth.login') }}">
+    <input type="hidden" name="action" value="login">
+    <h2>登录</h2>
+
+    <label>邮箱 / 手机号</label>
+    <input class="input" name="account" autocomplete="username" required>
+
+    <label>密码</label>
+    <input class="input" name="password" type="password" autocomplete="current-password" required>
+
+    <button class="btn" type="submit">登录</button>
+    <p class="auth-switch">还没有账号？<a href="#" id="toRegister">去注册</a></p>
+  </form>
+
+  <!-- 注册 -->
+  <form id="formRegister" method="post" action="{{ url_for('auth.login') }}" style="display:none;">
+    <input type="hidden" name="action" value="register">
+    <h2>注册</h2>
+
+    <label>用户名</label>
+    <input class="input" name="username" required>
+
+    <label>邮箱</label>
+    <input class="input" id="regEmail" name="email" type="email" required>
+
+    <label>手机号</label>
+    <input class="input" id="regPhone" name="phone" required>
+
+    <label>密码（字母+数字，至少6位）</label>
+    <input class="input" id="regPwd" name="password" type="password" required>
+
+    <label>确认密码</label>
+    <input class="input" id="regConfirm" name="confirm_password" type="password" required>
+
+    <button class="btn" type="submit">注册</button>
+    <p class="auth-switch">已有账号？<a href="#" id="toLogin">去登录</a></p>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const initialTab = "{{ tab or 'login' }}";
+    const formLogin = document.getElementById("formLogin");
+    const formRegister = document.getElementById("formRegister");
+    const tabLogin = document.getElementById("tabLogin");
+    const tabRegister = document.getElementById("tabRegister");
+    const toRegister = document.getElementById("toRegister");
+    const toLogin = document.getElementById("toLogin");
+
+    function show(which) {
+      const isLogin = which === "login";
+      formLogin.style.display = isLogin ? "block" : "none";
+      formRegister.style.display = isLogin ? "none" : "block";
+      tabLogin.classList.toggle("active", isLogin);
+      tabRegister.classList.toggle("active", !isLogin);
+    }
+
+    tabLogin.addEventListener("click", () => show("login"));
+    tabRegister.addEventListener("click", () => show("register"));
+    toRegister.addEventListener("click", (e) => { e.preventDefault(); show("register"); });
+    toLogin.addEventListener("click", (e) => { e.preventDefault(); show("login"); });
+
+    show(initialTab === "register" ? "register" : "login");
+
+    // 注册前端校验（只校验注册，不拦截登录）
+    formRegister.addEventListener("submit", function (e) {
+      const email = document.getElementById("regEmail").value.trim();
+      const phone = document.getElementById("regPhone").value.trim();
+      const pwd = document.getElementById("regPwd").value;
+      const confirm = document.getElementById("regConfirm").value;
+
+      const emailRe = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+      const phoneRe = /^1\d{10}$/;
+      const pwdRe = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
+
+      if (!emailRe.test(email)) {
+        e.preventDefault();
+        alert("邮箱格式不正确，请检查后缀");
+        return;
+      }
+      if (!phoneRe.test(phone)) {
+        e.preventDefault();
+        alert("手机号格式不正确，应为11位中国大陆手机号");
+        return;
+      }
+      if (!pwdRe.test(pwd)) {
+        e.preventDefault();
+        alert("密码至少6位，且必须包含字母和数字");
+        return;
+      }
+      if (pwd !== confirm) {
+        e.preventDefault();
+        alert("两次输入密码不一致");
+      }
+    });
+  })();
+</script>
+{% endblock %}

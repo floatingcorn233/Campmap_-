@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+<!-- 继承基础模板，复用全站统一布局（繼承基礎模板，重用全站統一佈局） -->
+
+{% block title %}我的收藏 - CampMap{% endblock %}
+<!-- 设置当前页面标题（設定目前頁面標題） -->
+
+{% block content %}
+<!-- 引入收藏页主体内容模板，便于页面结构拆分与复用（引入收藏頁主體內容模板，便於頁面結構拆分與重用） -->
+{% include "map/_favorites_body.html" %}
+{% endblock %}
+

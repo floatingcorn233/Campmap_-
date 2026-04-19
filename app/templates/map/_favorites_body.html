@@ -1,0 +1,94 @@
+<!-- 收藏页面主体区域（收藏頁面主體區域） -->
+<div class="container py-4">
+  <!-- 收藏列表卡片（收藏列表卡片） -->
+  <div class="fav-glass">
+    <h2 class="fav-title">我的收藏</h2>
+
+    <!-- 有收藏时显示列表，无收藏时显示提示（有收藏時顯示列表，無收藏時顯示提示） -->
+    {% if camps %}
+      <div class="fav-list">
+        {% for c in camps %}
+          <div class="fav-item">
+            <div class="fav-left">
+              <div class="fav-name">{{ c.name }}</div>
+              <div class="fav-loc">{{ c.city }} {{ c.district }}</div>
+            </div>
+
+            <!-- 跳转到对应营地详情页（跳轉到對應營地詳情頁） -->
+            <a class="btn btn-primary fav-btn" href="{{ url_for('map.camp_detail', camp_id=c.id) }}">查看详情</a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mt-3 mb-0">你还没有收藏营地。</p>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  /* 收藏主卡片样式（收藏主卡片樣式） */
+  .fav-glass{
+    background: rgba(10, 28, 18, .38);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+    color: #ecfff2;
+  }
+
+  /* 收藏列表布局（收藏列表佈局） */
+  .fav-list{
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* 单个收藏项：左侧信息 + 右侧按钮（單個收藏項：左側資訊 + 右側按鈕） */
+  .fav-item{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: rgba(10, 28, 18, .38);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: var(--shadow);
+  }
+
+  /* 左侧文字区域允许超长内容省略（左側文字區域允許超長內容省略） */
+  .fav-left{
+    min-width: 0;
+  }
+
+  /* 营地名称超出时显示省略号（營地名稱超出時顯示省略號） */
+  .fav-name{
+    font-size: 20px;
+    font-weight: 800;
+    color: #f3fff7;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fav-loc{
+    margin-top: 4px;
+    font-size: 13px;
+    color: rgba(232, 255, 242, .85);
+  }
+
+  /* 按钮固定大小，避免被压缩（按鈕固定大小，避免被壓縮） */
+  .fav-btn{
+    flex: 0 0 auto;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+</style>
